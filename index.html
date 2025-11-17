@@ -97,14 +97,6 @@
     </div>
 
     <div id="box">
-        <select id="romSelect">
-            <option value="">Select a ROM</option>
-            <option value="super_mario.nes">Super Mario (NES)</option>
-            <option value="zelda.sfc">Zelda (SNES)</option>
-            <option value="sonic.md">Sonic (Mega Drive)</option>
-            <!-- Add more ROMs here -->
-        </select>
-        <button id="loadButton">Load Game</button>
         <input type="file" id="input" title="Upload ROM"/>
         <div>Or drag ROM file here</div>
     </div>
@@ -115,16 +107,8 @@
         let browserMode;
         const urlParams = new URLSearchParams(window.location.search);
 
-        if (urlParams.get("debug") === "1" || urlParams.get("debug") === "true") {
-            enableDebug = true;
-            console.log("Debug is enabled");
-        } else console.log("Debug is disabled");
-
-        if ((urlParams.get("threads") === "1" || urlParams.get("threads") === "true") && window.SharedArrayBuffer) {
-            enableThreads = true;
-            console.log("Threads are enabled");
-        } else console.log("Threads are disabled");
-
+        if (urlParams.get("debug") === "1" || urlParams.get("debug") === "true") enableDebug = true;
+        if ((urlParams.get("threads") === "1" || urlParams.get("threads") === "true") && window.SharedArrayBuffer) enableThreads = true;
         if (urlParams.get("browserMode")) browserMode = urlParams.get("browserMode");
 
         async function run(upload, file) {
@@ -142,53 +126,7 @@
                 if (["d64"].includes(ext)) return "vice_x64sc";
                 if (["md","sg","smd","gen"].includes(ext)) return "segaMD";
                 if (["nds","gba","gb"].includes(ext)) return ext;
-
-                return await new Promise(resolve => {
-                    const coreValues = {
-                        "Nintendo 64": "n64",
-                        "Nintendo Game Boy": "gb",
-                        "Nintendo Game Boy Advance": "gba",
-                        "Nintendo DS": "nds",
-                        "Nintendo Entertainment System": "nes",
-                        "Super Nintendo Entertainment System": "snes",
-                        "PlayStation": "psx",
-                        "Virtual Boy": "vb",
-                        "Sega Mega Drive": "segaMD",
-                        "Sega Master System": "segaMS",
-                        "Sega CD": "segaCD",
-                        "Atari Lynx": "lynx",
-                        "Sega 32X": "sega32x",
-                        "Atari Jaguar": "jaguar",
-                        "Sega Game Gear": "segaGG",
-                        "Sega Saturn": "segaSaturn",
-                        "Atari 7800": "atari7800",
-                        "Atari 2600": "atari2600",
-                        "Arcade": "arcade",
-                        "NEC TurboGrafx-16/SuperGrafx/PC Engine": "pce",
-                        "NEC PC-FX": "pcfx",
-                        "SNK NeoGeo Pocket (Color)": "ngp",
-                        "Bandai WonderSwan (Color)": "ws",
-                        "ColecoVision": "coleco",
-                        "Commodore 64": "vice_x64sc"
-                    };
-
-                    if (enableThreads) coreValues["DOSBOX-PURE"] = "dosbox_pure";
-
-                    const button = document.createElement("button");
-                    const select = document.createElement("select");
-                    for (const type in coreValues) {
-                        const option = document.createElement("option");
-                        option.value = coreValues[type];
-                        option.textContent = type;
-                        select.appendChild(option);
-                    }
-
-                    button.onclick = () => resolve(select[select.selectedIndex].value);
-                    button.textContent = "Load game";
-                    box.innerHTML = "";
-                    box.appendChild(select);
-                    box.appendChild(button);
-                });
+                return ext;
             })(parts.pop());
 
             const div = document.createElement("div");
@@ -219,16 +157,47 @@
         }
 
         const input = document.getElementById("input");
+        const box = document.getElementById("box");
         input.onchange = () => run(true);
 
-        const romSelect = document.getElementById("romSelect");
-        const loadButton = document.getElementById("loadButton");
-        loadButton.onclick = () => {
-            if (!romSelect.value) return alert("Please select a ROM!");
-            run(false, romSelect.value);
-        };
+        // Fetch ROMs dynamically from roms/roms.json
+        fetch("roms/roms.json")
+            .then(res => res.json())
+            .then(roms => {
+                const romSelect = document.createElement("select");
+                romSelect.id = "romSelect";
+                const defaultOption = document.createElement("option");
+                defaultOption.value = "";
+                defaultOption.textContent = "Select a ROM";
+                romSelect.appendChild(defaultOption);
 
-        const box = document.getElementById("box");
+                roms.forEach(r => {
+                    const option = document.createElement("option");
+                    option.value = r;
+                    option.textContent = r;
+                    romSelect.appendChild(option);
+                });
+
+                const loadButton = document.createElement("button");
+                loadButton.textContent = "Load Game";
+                loadButton.onclick = () => {
+                    if (!romSelect.value) return alert("Please select a ROM!");
+                    run(false, romSelect.value);
+                };
+
+                // Clear box and append new elements
+                box.innerHTML = "";
+                box.appendChild(romSelect);
+                box.appendChild(loadButton);
+
+                // Keep drag-and-drop area
+                const dragInfo = document.createElement("div");
+                dragInfo.textContent = "Or drag ROM file here";
+                box.appendChild(dragInfo);
+                box.appendChild(input);
+            });
+
+        // Drag-and-drop styling
         box.ondragover = () => box.setAttribute("drag", true);
         box.ondragleave = () => box.removeAttribute("drag");
     </script>
