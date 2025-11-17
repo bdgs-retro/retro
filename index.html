@@ -1,291 +1,236 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>EmulatorJS</title>
-        <link rel = icon href = docs/favicon.ico sizes = "16x16 32x32 48x48 64x64" type = image/vnd.microsoft.icon>
-        <meta name = viewport content = "width = device-width, initial-scale = 1">
-        <style>
-             body, html {
-                height: 100%;
-                background-color: black;
-                color: white;
-            }
+<head>
+    <title>EmulatorJS</title>
+    <link rel="icon" href="docs/favicon.ico" sizes="16x16 32x32 48x48 64x64" type="image/vnd.microsoft.icon">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body, html {
+            height: 100%;
+            background-color: black;
+            color: white;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+        }
 
-            body {
-                margin: 0;
-                overflow: hidden;
-            }
+        #top {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 5px;
+        }
 
-            body, #box, #top {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                flex-direction: column;
-            }
+        #box {
+            color: #aaa;
+            height: 20em;
+            width: 30em;
+            max-width: 80%;
+            max-height: 80%;
+            background-color: #333;
+            border-radius: 0.4em;
+            border: 2px solid #555;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition-duration: 0.2s;
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 20px;
+            margin: 5px;
+            text-align: center;
+            padding: 10px;
+        }
 
-            #box {
-                color: #aaa;
-                height: 20em;
-                width: 30em;
-                max-width: 80%;
-                max-height: 80%;
-                background-color: #333;
-                border-radius: 0.4em;
-                border: 2px solid #555;
-                position: relative;
-                flex-direction: column;
-                transition-duration: 0.2s;
-                overflow: hidden;
-                font-family: monospace;
-                font-weight: bold;
-                font-size: 20px;
-                margin: 5px;
-                text-align: center;
-                padding: 10px;
-            }
+        #box:hover, #box[drag] {
+            border-color: #1AAFFF;
+            color: #ddd;
+        }
 
-            #box:hover, #box[drag] {
-                border-color: #1AAFFF;
-                color: #ddd
-            }
+        #input {
+            cursor: pointer;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+        }
 
-            #input {
-                cursor: pointer;
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                height: 100%;
-                opacity: 0;
-            }
+        select, button {
+            padding: 0.6em 0.4em;
+            margin: 0.5em;
+            width: 15em;
+            max-width: 100%;
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 16px;
+            background-color: #444;
+            color: #aaa;
+            border-radius: 0.4em;
+            border: 1px solid #555;
+            cursor: pointer;
+            transition-duration: 0.2s;
+        }
 
-            #display {
-                width: 100%;
-                height: 100%
-            }
+        select:hover, button:hover {
+            background-color: #666;
+            color: #ddd;
+        }
 
-            select, button {
-                padding: 0.6em 0.4em;
-                margin: 0.5em;
-                width: 15em;
-                max-width: 100%;
-                font-family: monospace;
-                font-weight: bold;
-                font-size: 16px;
-                background-color: #444;
-                color: #aaa;
-                border-radius: 0.4em;
-                border: 1px solid #555;
-                cursor: pointer;
-                transition-duration: 0.2s
-            }
+        .logo {
+            width: 130px;
+            height: 130px;
+            filter: drop-shadow(0 0 8px white);
+        }
+    </style>
+</head>
+<body>
+    <div id="top">
+        <h1>EmulatorJS Demo</h1>
+        <img src="docs/Logo-light.png" alt="Logo" class="logo">
+    </div>
 
-            select:hover, button:hover {
-                background-color: #666;
-                color: #ddd
-            }
+    <div id="box">
+        <select id="romSelect">
+            <option value="">Select a ROM</option>
+            <option value="super_mario.nes">Super Mario (NES)</option>
+            <option value="zelda.sfc">Zelda (SNES)</option>
+            <option value="sonic.md">Sonic (Mega Drive)</option>
+            <!-- Add more ROMs here -->
+        </select>
+        <button id="loadButton">Load Game</button>
+        <input type="file" id="input" title="Upload ROM"/>
+        <div>Or drag ROM file here</div>
+    </div>
 
-            .logo {
-                width: 130px;
-                height: 130px;
-                filter: drop-shadow(0 0 8px white);
-            }
+    <script>
+        let enableDebug = false;
+        let enableThreads = false;
+        let browserMode;
+        const urlParams = new URLSearchParams(window.location.search);
 
-            #top {
-                margin: 5px;
-            }
-        </style>
-    </head>
+        if (urlParams.get("debug") === "1" || urlParams.get("debug") === "true") {
+            enableDebug = true;
+            console.log("Debug is enabled");
+        } else console.log("Debug is disabled");
 
-    <body>
-        <div id="top">
-            <h1>EmulatorJS Demo</h1>
-            <img src="docs/Logo-light.png" alt="Logo" class="logo">
-            <br>
-        </div>
-        <div id="box">
-            <input type="file" id ="input" title="Upload" />
-            Drag ROM file or click here
-        </div>
+        if ((urlParams.get("threads") === "1" || urlParams.get("threads") === "true") && window.SharedArrayBuffer) {
+            enableThreads = true;
+            console.log("Threads are enabled");
+        } else console.log("Threads are disabled");
 
-        <script>
-            let enableDebug = false;
-            let enableThreads = false;
-            let browserMode;
-            const queryString = window.location.search;
-            const urlParams = new URLSearchParams(queryString);
-            if (parseInt(urlParams.get("debug")) === 1 || urlParams.get("debug") === "true") {
-                enableDebug = true;
-                console.log("Debug is enabled");
-            } else {
-                console.log("Debug is disabled");
-            }
+        if (urlParams.get("browserMode")) browserMode = urlParams.get("browserMode");
 
-            if (parseInt(urlParams.get("threads")) === 1 || urlParams.get("threads") === "true") {
-                if (window.SharedArrayBuffer) {
-                    enableThreads = true;
-                    console.log("Threads are enabled");
-                } else {
-                    console.warn("Threads are disabled as SharedArrayBuffer is not available. Threads requires two headers to be set when sending you html page. See https://stackoverflow.com/a/68630724");
-                    console.log("Threads are disabled");
-                }
-            } else {
-                console.log("Threads are disabled");
-            }
+        async function run(upload, file) {
+            const url = upload ? input.files[0] : `roms/${file}`;
+            const parts = upload ? input.files[0].name.split(".") : file.split(".");
 
-            if (urlParams.get("browserMode")) {
-                browserMode = urlParams.get("browserMode");
-            }
+            const core = await (async (ext) => {
+                if (["fds","nes","unif","unf"].includes(ext)) return "nes";
+                if (["smc","sfc","fig","gd3","gd7","dx2","bsx","swc"].includes(ext)) return "snes";
+                if (["z64","n64"].includes(ext)) return "n64";
+                if (["pce"].includes(ext)) return "pce";
+                if (["ngp","ngc"].includes(ext)) return "ngp";
+                if (["ws","wsc"].includes(ext)) return "ws";
+                if (["col","cv"].includes(ext)) return "coleco";
+                if (["d64"].includes(ext)) return "vice_x64sc";
+                if (["md","sg","smd","gen"].includes(ext)) return "segaMD";
+                if (["nds","gba","gb"].includes(ext)) return ext;
 
-            if (urlParams.get("rom")) {
-                console.log(`Loading ROM from URL: roms/${urlParams.get("rom")}`);
-                run(false, urlParams.get("rom"));
-            }
+                return await new Promise(resolve => {
+                    const coreValues = {
+                        "Nintendo 64": "n64",
+                        "Nintendo Game Boy": "gb",
+                        "Nintendo Game Boy Advance": "gba",
+                        "Nintendo DS": "nds",
+                        "Nintendo Entertainment System": "nes",
+                        "Super Nintendo Entertainment System": "snes",
+                        "PlayStation": "psx",
+                        "Virtual Boy": "vb",
+                        "Sega Mega Drive": "segaMD",
+                        "Sega Master System": "segaMS",
+                        "Sega CD": "segaCD",
+                        "Atari Lynx": "lynx",
+                        "Sega 32X": "sega32x",
+                        "Atari Jaguar": "jaguar",
+                        "Sega Game Gear": "segaGG",
+                        "Sega Saturn": "segaSaturn",
+                        "Atari 7800": "atari7800",
+                        "Atari 2600": "atari2600",
+                        "Arcade": "arcade",
+                        "NEC TurboGrafx-16/SuperGrafx/PC Engine": "pce",
+                        "NEC PC-FX": "pcfx",
+                        "SNK NeoGeo Pocket (Color)": "ngp",
+                        "Bandai WonderSwan (Color)": "ws",
+                        "ColecoVision": "coleco",
+                        "Commodore 64": "vice_x64sc"
+                    };
 
-            async function run(upload, file) {
-                const url = upload ? input.files[0] : `roms/${file}`;
-                const parts = upload ? input.files[0].name.split(".") : file.split(".");
+                    if (enableThreads) coreValues["DOSBOX-PURE"] = "dosbox_pure";
 
-                const core = await (async (ext) => {
-                    if (["fds", "nes", "unif", "unf"].includes(ext))
-                        return "nes"
+                    const button = document.createElement("button");
+                    const select = document.createElement("select");
+                    for (const type in coreValues) {
+                        const option = document.createElement("option");
+                        option.value = coreValues[type];
+                        option.textContent = type;
+                        select.appendChild(option);
+                    }
 
-                    if (["smc", "fig", "sfc", "gd3", "gd7", "dx2", "bsx", "swc"].includes(ext))
-                        return "snes"
+                    button.onclick = () => resolve(select[select.selectedIndex].value);
+                    button.textContent = "Load game";
+                    box.innerHTML = "";
+                    box.appendChild(select);
+                    box.appendChild(button);
+                });
+            })(parts.pop());
 
-                    if (["z64", "n64"].includes(ext))
-                        return "n64"
+            const div = document.createElement("div");
+            const sub = document.createElement("div");
+            const script = document.createElement("script");
 
-                    if (["pce"].includes(ext))
-                        return "pce"
+            sub.id = "game";
+            div.id = "display";
+            top.remove();
+            box.remove();
+            div.appendChild(sub);
+            document.body.appendChild(div);
 
-                    if (["ngp", "ngc"].includes(ext))
-                        return "ngp"
+            window.EJS_player = "#game";
+            window.EJS_gameName = parts.shift();
+            window.EJS_biosUrl = "";
+            window.EJS_gameUrl = url;
+            window.EJS_core = core;
+            window.EJS_pathtodata = "data/";
+            window.EJS_startOnLoaded = true;
+            window.EJS_DEBUG_XX = enableDebug;
+            window.EJS_disableDatabases = true;
+            window.EJS_threads = enableThreads;
+            if (browserMode) window.EJS_browserMode = browserMode;
 
-                    if (["ws", "wsc"].includes(ext))
-                        return "ws"
+            script.src = "data/loader.js";
+            document.body.appendChild(script);
+        }
 
-                    if (["col", "cv"].includes(ext))
-                        return "coleco"
+        const input = document.getElementById("input");
+        input.onchange = () => run(true);
 
-                    if (["d64"].includes(ext))
-                        return "vice_x64sc"
-                    
-                    if (["md", "sg", "smd", "gen"].includes(ext))
-                        return "segaMD"
+        const romSelect = document.getElementById("romSelect");
+        const loadButton = document.getElementById("loadButton");
+        loadButton.onclick = () => {
+            if (!romSelect.value) return alert("Please select a ROM!");
+            run(false, romSelect.value);
+        };
 
-                    if (["nds", "gba", "gb", "z64", "n64"].includes(ext))
-                        return ext
-
-                    return await new Promise(resolve => {
-                        var coreValues = {
-                            "Nintendo 64": "n64",
-                            "Nintendo Game Boy": "gb",
-                            "Nintendo Game Boy Advance": "gba",
-                            "Nintendo DS": "nds",
-                            "Nintendo Entertainment System": "nes",
-                            "Super Nintendo Entertainment System": "snes",
-                            "PlayStation": "psx",
-                            "Virtual Boy": "vb",
-                            "Sega Mega Drive": "segaMD",
-                            "Sega Master System": "segaMS",
-                            "Sega CD": "segaCD",
-                            "Atari Lynx": "lynx",
-                            "Sega 32X": "sega32x",
-                            "Atari Jaguar": "jaguar",
-                            "Sega Game Gear": "segaGG",
-                            "Sega Saturn": "segaSaturn",
-                            "Atari 7800": "atari7800",
-                            "Atari 2600": "atari2600",
-                            "Arcade": "arcade",
-                            "NEC TurboGrafx-16/SuperGrafx/PC Engine": "pce",
-                            "NEC PC-FX": "pcfx",
-                            "SNK NeoGeo Pocket (Color)": "ngp",
-                            "Bandai WonderSwan (Color)": "ws",
-                            "ColecoVision": "coleco",
-                            "Commodore 64": "vice_x64sc",
-                            "Commodore 128": "vice_x128",
-                            "Commodore VIC20": "vice_xvic",
-                            "Commodore Plus/4": "vice_xplus4",
-                            "Commodore PET": "vice_xpet",
-                        }
-                        
-                        if (enableThreads) {
-                            coreValues["DOSBOX-PURE"] = "dosbox_pure";
-                            coreValues["PlayStation Portable"] = "ppsspp";
-                        }
-
-                        for (let core in coreValues) {
-                            if (core.toLowerCase() === ext) {
-                                resolve(core)
-                            }
-                        }
- 
-                        const cores = Object.keys(coreValues).sort().reduce(
-                            (obj, key) => { 
-                                obj[key] = coreValues[key]; 
-                                return obj;
-                            }, 
-                            {}
-                        );
-
-                        const button = document.createElement("button")
-                        const select = document.createElement("select")
-
-                        for (const type in cores) {
-                            const option = document.createElement("option")
-
-                            option.value = cores[type]
-                            option.textContent = type
-                            select.appendChild(option)
-                        }
-
-                        button.onclick = () => resolve(select[select.selectedIndex].value)
-                        button.textContent = "Load game"
-                        box.innerHTML = ""
-
-                        box.appendChild(select)
-                        box.appendChild(button)
-                    })
-                })(parts.pop())
-
-                const div = document.createElement("div")
-                const sub = document.createElement("div")
-                const script = document.createElement("script")
-
-                sub.id = "game"
-                div.id = "display"
-
-                const top = document.getElementById("top");
-                top.remove();
-                box.remove()
-                div.appendChild(sub)
-                document.body.appendChild(div)
-
-                window.EJS_player = "#game";
-                window.EJS_gameName = parts.shift();
-                window.EJS_biosUrl = "";
-                window.EJS_gameUrl = url;
-                window.EJS_core = core;
-                window.EJS_pathtodata = "data/";
-                window.EJS_startOnLoaded = true;
-                window.EJS_DEBUG_XX = enableDebug;
-                window.EJS_disableDatabases = true;
-                window.EJS_threads = enableThreads;
-                if (browserMode) {
-                    window.EJS_browserMode = browserMode;
-                }
-
-                script.src = "data/loader.js";
-                document.body.appendChild(script);
-            }
-            
-            input.onchange = async () => {
-                run(true);
-            }
-            
-            box.ondragover = () => box.setAttribute("drag", true);
-            box.ondragleave = () => box.removeAttribute("drag");
-        </script>
-    </body>
+        const box = document.getElementById("box");
+        box.ondragover = () => box.setAttribute("drag", true);
+        box.ondragleave = () => box.removeAttribute("drag");
+    </script>
+</body>
 </html>
